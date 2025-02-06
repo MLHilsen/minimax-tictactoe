@@ -48,6 +48,13 @@ class Board:
         x = col * 100 + 50
         y = row * 100 + 50
         return x, y
+    
+    def get_available_moves(self):
+        moves = []
+        for index, symbol in enumerate(self.state):
+            if symbol == '':
+                moves.append(index)
+        return moves
 
 
 class Player:
@@ -59,17 +66,68 @@ class Player:
         pass
 
 
-class AIPlayer(Player):
+class AIPlayer:
     def __init__(self, symbol):
-        super().__init__(symbol)
+        self.symbol = symbol  # AI's symbol ('X' or 'O')
 
     def minimax(self, board, depth, is_maximizing):
-        # Implement the Minimax algorithm
-        pass
+        """
+        Minimax algorithm to determine the best move for the AI.
+        :param board: The current board state.
+        :param depth: The depth of the recursion (used to prioritize faster wins).
+        :param is_maximizing: True if it's the AI's turn, False if it's the human's turn.
+        :return: The best score for the current board state.
+        """
+        # Base cases: check if the game is over
+        winner = board.check_winner()
+        if winner == self.symbol:  # AI wins
+            return 10 - depth
+        elif winner is not None:  # Human wins
+            return depth - 10
+        elif board.is_full():  # Draw
+            return 0
+
+        # Recursive case
+        if is_maximizing:
+            best_score = -float('inf')  # Initialize to worst possible score for maximizing player
+            for move in board.get_available_moves():
+                board.make_move(move, self.symbol)  # Simulate AI's move
+                score = self.minimax(board, depth + 1, False)  # Recursively evaluate human's turn
+                board.undo_move(move)  # Undo the move
+                best_score = max(score, best_score)  # Update best score
+            return best_score
+        else:
+            best_score = float('inf')  # Initialize to worst possible score for minimizing player
+            for move in board.get_available_moves():
+                board.make_move(move, self.get_opponent_symbol())  # Simulate human's move
+                score = self.minimax(board, depth + 1, True)  # Recursively evaluate AI's turn
+                board.undo_move(move)  # Undo the move
+                best_score = min(score, best_score)  # Update best score
+            return best_score
 
     def get_move(self, board):
-        # Use Minimax to determine the best move
-        pass
+        """
+        Determines the best move for the AI using the Minimax algorithm.
+        :param board: The current board state.
+        :return: The best move (index of the cell).
+        """
+        best_move = None
+        best_score = -float('inf')
+        for move in board.get_available_moves():
+            board.make_move(move, self.symbol)  # Simulate AI's move
+            score = self.minimax(board, 0, False)  # Evaluate the move
+            board.undo_move(move)  # Undo the move
+            if score > best_score:
+                best_score = score
+                best_move = move
+        return best_move
+
+    def get_opponent_symbol(self):
+        """
+        Returns the symbol of the opponent.
+        :return: 'X' if AI is 'O', 'O' if AI is 'X'.
+        """
+        return 'X' if self.symbol == 'O' else 'O'
 
 
 class TicTacToeGUI:
@@ -106,6 +164,7 @@ class TicTacToeGUI:
             self.canvas.create_line(x + 30, y - 30, x - 30, y + 30, fill="blue", width=2)
         elif symbol == 'O':
             self.canvas.create_oval(x - 30, y - 30, x + 30, y + 30, outline="red", width=2)
+        self.canvas.update()
 
     def handle_click(self, event):
         # Convert mouse coordinates to grid position
